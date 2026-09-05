@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HVAC AI Command Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 20px 30px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 22px; color: #fff; }
+    .header .live { display: flex; align-items: center; gap: 8px; color: #00c853; font-size: 13px; }
+    .header .live .dot { width: 8px; height: 8px; background: #00c853; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .header p { color: #888; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 20px 24px; }
+    .card { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a; transition: border-color 0.3s; }
+    .card:hover { border-color: #4a4a8a; }
+    .card h3 { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .card .value { font-size: 32px; font-weight: 700; color: #fff; margin: 8px 0 4px; }
+    .card .sub { font-size: 13px; color: #666; }
+    .positive { color: #00c853 !important; }
+    .negative { color: #ff5252 !important; }
+    .section { padding: 12px 24px 24px; }
+    .section h2 { font-size: 16px; margin-bottom: 12px; color: #fff; }
+    .table-wrap { background: #1a1a2e; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a4a; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #222; font-size: 13px; }
+    th { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; background: #12122a; }
+    td { color: #ccc; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .badge-sent { background: #1b3a4b; color: #4fc3f7; }
+    .badge-hot { background: #4a1c1c; color: #ff5252; }
+    .badge-new { background: #1b4a1c; color: #69f0ae; }
+    .badge-replied { background: #4a3a1c; color: #ffd740; }
+    .badge-interested { background: #1c4a1c; color: #00e676; }
+    .badge-question { background: #1c2a4a; color: #82b1ff; }
+    .badge-not_interested { background: #3a1c1c; color: #ff8a80; }
+    .empty { text-align: center; padding: 40px; color: #555; font-size: 14px; }
+    .tabs { display: flex; gap: 8px; padding: 0 24px; margin-top: 8px; }
+    .tab { padding: 8px 16px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 8px; color: #888; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .tab.active, .tab:hover { background: #2a2a4e; color: #fff; border-color: #4a4a8a; }
+    .chat-test { padding: 24px; }
+    .chat-box { background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a4a; padding: 20px; max-width: 600px; }
+    .chat-box h3 { color: #fff; margin-bottom: 12px; font-size: 14px; }
+    .chat-messages { max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
+    .chat-msg { padding: 8px 12px; margin: 6px 0; border-radius: 10px; font-size: 13px; max-width: 80%; }
+    .chat-msg.user { background: #2a4a6a; color: #fff; margin-left: auto; text-align: right; }
+    .chat-msg.ai { background: #2a2a4a; color: #e0e0e0; }
+    .chat-input { display: flex; gap: 8px; }
+    .chat-input input { flex: 1; padding: 10px 14px; background: #0a0a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 13px; outline: none; }
+    .chat-input input:focus { border-color: #4a4a8a; }
+    .chat-input button { padding: 10px 20px; background: #4a4a8a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .chat-input button:hover { background: #5a5a9a; }
+    .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } .header { flex-direction: column; gap: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>🤖 HVAC AI Command Center</h1>
+      <p>Bhomvrat Rai's Lead Conversion Agency</p>
+    </div>
+    <div class="live"><div class="dot"></div> Live &middot; Auto-refresh 30s</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Total Prospects</h3>
+      <div class="value" id="total-prospects">--</div>
+      <div class="sub">In database</div>
+    </div>
+    <div class="card">
+      <h3>Emails Sent</h3>
+      <div class="value" id="emails-sent">--</div>
+      <div class="sub positive">Outreach active</div>
+    </div>
+    <div class="card">
+      <h3>🔥 Hot Leads</h3>
+      <div class="value" id="hot-leads" style="color:#ff5252">--</div>
+      <div class="sub negative">Need follow-up</div>
+    </div>
+    <div class="card">
+      <h3>Replies</h3>
+      <div class="value" id="total-replies">--</div>
+      <div class="sub">From prospects</div>
+    </div>
+    <div class="card">
+      <h3>Conversations</h3>
+      <div class="value" id="total-convos">--</div>
+      <div class="sub">Chatbot sessions</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('prospects')">Outreach</div>
+    <div class="tab" onclick="showTab('leads')">Hot Leads</div>
+    <div class="tab" onclick="showTab('replies')">Inbox</div>
+    <div class="tab" onclick="showTab('chat')">Test AI Chat</div>
+  </div>
+
+  <div id="tab-prospects" class="section">
+    <h2>📧 Recent Outreach</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>Business</th><th>City</th><th>Email</th><th>Priority</th><th>Status</th></tr></thead>
+      <tbody id="prospects-body"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div id="tab-leads" class="section" style="display:none">
+    <h2>🔥 Hot Leads</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Source</th><th>Message</th></tr></thead>
+      <tbody id="leads-body"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div id="tab-replies" class="section" style="display:none">
+    <h2>📬 Inbox Replies</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>From</th><th>Preview</th><th>Classification</th><th>Time</th></tr></thead>
+      <tbody id="replies-body"><tr><td colspan="4" class="empty">No replies yet. Waiting for prospects to respond...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div id="tab-chat" class="section" style="display:none">
+    <div class="chat-box">
+      <h3>🤖 Test AI Brain (Llama 70B)</h3>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input">
+        <input id="chat-input" placeholder="Type a message in Hindi or English..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button onclick="sendChat()" id="chat-btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://xunuljixksicxprmaobd.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1bnVsaml4a3NpY3hwcm1hb2JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NDk0MDYsImV4cCI6MjEwNDAyNTQwNn0.eAAhbVPYRH_bY6qxlm7Yty6QR3aOT0fY34VP6XFJmk0';
+    let chatConvId = null;
+
+    async function fetchData(table, query = '') {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      return resp.ok ? await resp.json() : [];
+    }
+
+    function statusBadge(s) {
+      const colors = { not_started: 'new', day0_sent: 'sent', day2_sent: 'sent', day5_sent: 'sent', completed: 'sent', replied: 'replied' };
+      return `<span class="badge badge-${colors[s] || 'new'}">${(s || 'new').replace(/_/g, ' ')}</span>`;
+    }
+
+    function classificationBadge(c) {
+      const map = { INTERESTED: 'interested', NOT_INTERESTED: 'not_interested', QUESTION: 'question' };
+      return `<span class="badge badge-${map[c] || 'new'}">${c || '-'}</span>`;
+    }
+
+    async function loadDashboard() {
+      try {
+        const [prospects, leads, replies, convos] = await Promise.all([
+          fetchData('prospects', 'order=created_at.desc&limit=25'),
+          fetchData('leads', 'order=created_at.desc&limit=15'),
+          fetchData('inbox_replies', 'order=received_at.desc&limit=15'),
+          fetchData('conversations', 'select=id&limit=100'),
+        ]);
+
+        document.getElementById('total-prospects').textContent = prospects.length;
+        document.getElementById('emails-sent').textContent = prospects.filter(p => p.outreach_status && p.outreach_status !== 'not_started').length;
+        document.getElementById('hot-leads').textContent = leads.filter(l => l.status === 'hot').length;
+        document.getElementById('total-replies').textContent = replies.length;
+        document.getElementById('total-convos').textContent = convos.length;
+
+        document.getElementById('prospects-body').innerHTML = prospects.length
+          ? prospects.map(p => `<tr><td>${p.business_name || '-'}</td><td>${p.city || '-'}</td><td>${p.email || '-'}</td><td>${p.priority || '-'}</td><td>${statusBadge(p.outreach_status)}</td></tr>`).join('')
+          : '<tr><td colspan="5" class="empty">No prospects yet</td></tr>';
+
+        document.getElementById('leads-body').innerHTML = leads.length
+          ? leads.map(l => `<tr><td>${l.name}</td><td>${l.email || '-'}</td><td>${l.phone || '-'}</td><td><span class="badge badge-${l.status === 'hot' ? 'hot' : 'new'}">${l.source}</span></td><td>${(l.message || '-').substring(0, 80)}</td></tr>`).join('')
+          : '<tr><td colspan="5" class="empty">No leads yet. They\'ll appear when prospects interact with chatbot or reply.</td></tr>';
+
+        document.getElementById('replies-body').innerHTML = replies.length
+          ? replies.map(r => `<tr><td>${r.from_email || '-'}</td><td>${(r.snippet || '').substring(0, 100)}</td><td>${classificationBadge(r.classification)}</td><td>${r.received_at ? new Date(r.received_at).toLocaleString() : '-'}</td></tr>`).join('')
+          : '<tr><td colspan="4" class="empty">No replies yet. Waiting for prospects to respond...</td></tr>';
+      } catch(e) { console.error('Dashboard load error:', e); }
+    }
+
+    function showTab(name) {
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(`tab-${name}`).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const btn = document.getElementById('chat-btn');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      const messagesDiv = document.getElementById('chat-messages');
+      messagesDiv.innerHTML += `<div class="chat-msg user">${msg}</div>`;
+      input.value = '';
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/ai-brain`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, conversation_id: chatConvId }),
+        });
+        const data = await resp.json();
+        chatConvId = data.conversation_id;
+        messagesDiv.innerHTML += `<div class="chat-msg ai">${data.reply || data.error || 'No response'}</div>`;
+      } catch(e) {
+        messagesDiv.innerHTML += `<div class="chat-msg ai" style="color:#ff5252">Error: ${e.message}</div>`;
+      }
+      btn.disabled = false;
+      btn.textContent = 'Send';
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000);
+  </script>
+</body>
+</html>
