@@ -1,0 +1,41 @@
+name: HVAC Auto Outreach
+
+on:
+  schedule:
+    - cron: '0 3,7,11 * * *'  # 8:30 AM, 12:30 PM, 4:30 PM IST
+  workflow_dispatch:
+
+jobs:
+  send-emails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send scheduled follow-up emails
+        run: |
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/auto-email" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+  check-inbox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for prospect replies
+        run: |
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/check-inbox" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+  find-prospects:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        city: [Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Pune, Kolkata, Ahmedabad, Jaipur, Lucknow]
+    steps:
+      - name: Find prospects in ${{ matrix.city }}
+        run: |
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/find-prospects" \
+            -H "Content-Type: application/json" \
+            -d '{"city": "${{ matrix.city }}", "service": "HVAC AC repair"}'

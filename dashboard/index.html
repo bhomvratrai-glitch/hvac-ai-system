@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HVAC AI Command Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
+    .header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 20px 30px; border-bottom: 1px solid #333; }
+    .header h1 { font-size: 24px; color: #fff; }
+    .header p { color: #888; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 20px 30px; }
+    .card { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid #333; }
+    .card h3 { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    .card .value { font-size: 36px; font-weight: bold; color: #fff; margin: 10px 0; }
+    .card .change { font-size: 14px; }
+    .positive { color: #00c853; }
+    .negative { color: #ff5252; }
+    .neutral { color: #888; }
+    .section { padding: 20px 30px; }
+    .section h2 { font-size: 18px; margin-bottom: 15px; color: #fff; }
+    table { width: 100%; border-collapse: collapse; background: #1a1a2e; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #333; }
+    th { color: #888; font-size: 12px; text-transform: uppercase; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-sent { background: #1b3a4b; color: #4fc3f7; }
+    .badge-hot { background: #4a1c1c; color: #ff5252; }
+    .badge-new { background: #1b4a1c; color: #69f0ae; }
+    .badge-replied { background: #4a3a1c; color: #ffd740; }
+    #prospects-body, #leads-body, #replies-body { }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot-green { background: #00c853; }
+    .dot-red { background: #ff5252; }
+    .dot-yellow { background: #ffd740; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 HVAC AI Command Center</h1>
+    <p>Bhomvrat Rai's Lead Conversion Agency | Auto-updated every 30 min</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Total Prospects</h3>
+      <div class="value" id="total-prospects">--</div>
+      <div class="change neutral">In database</div>
+    </div>
+    <div class="card">
+      <h3>Emails Sent</h3>
+      <div class="value" id="emails-sent">--</div>
+      <div class="change positive">Outreach active</div>
+    </div>
+    <div class="card">
+      <h3>Hot Leads</h3>
+      <div class="value" id="hot-leads">--</div>
+      <div class="change" style="color: #ff5252;">Need follow-up</div>
+    </div>
+    <div class="card">
+      <h3>Replies</h3>
+      <div class="value" id="total-replies">--</div>
+      <div class="change neutral">From prospects</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📧 Recent Outreach</h2>
+    <table>
+      <thead><tr><th>Business</th><th>City</th><th>Email</th><th>Status</th><th>Last Email</th></tr></thead>
+      <tbody id="prospects-body"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>🔥 Hot Leads</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Message</th><th>Time</th></tr></thead>
+      <tbody id="leads-body"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>📬 Inbox Replies</h2>
+    <table>
+      <thead><tr><th>From</th><th>Preview</th><th>Classification</th><th>Time</th></tr></thead>
+      <tbody id="replies-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+    async function fetchData(table, query = '') {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      return await resp.json();
+    }
+
+    async function loadDashboard() {
+      try {
+        const [prospects, leads, replies] = await Promise.all([
+          fetchData('prospects', 'order=created_at.desc&limit=20'),
+          fetchData('leads', 'order=created_at.desc&limit=10'),
+          fetchData('inbox_replies', 'order=received_at.desc&limit=10'),
+        ]);
+
+        document.getElementById('total-prospects').textContent = prospects.length || 0;
+        document.getElementById('emails-sent').textContent = prospects.filter(p => p.outreach_status !== 'not_started').length || 0;
+        document.getElementById('hot-leads').textContent = leads.filter(l => l.status === 'hot').length || 0;
+        document.getElementById('total-replies').textContent = replies.length || 0;
+
+        const statusBadge = (s) => {
+          const map = { not_started: 'new', day0_sent: 'sent', day2_sent: 'sent', day5_sent: 'sent', completed: 'sent', replied: 'replied' };
+          return `<span class="badge badge-${map[s] || 'new'}">${s?.replace(/_/g, ' ') || 'new'}</span>`;
+        };
+
+        document.getElementById('prospects-body').innerHTML = prospects.map(p => `
+          <tr><td>${p.business_name || '-'}</td><td>${p.city || '-'}</td><td>${p.email || '-'}</td>
+          <td>${statusBadge(p.outreach_status)}</td><td>${p.last_email_date ? new Date(p.last_email_date).toLocaleDateString() : '-'}</td></tr>
+        `).join('');
+
+        document.getElementById('leads-body').innerHTML = leads.map(l => `
+          <tr><td>${l.name}</td><td>${l.email || '-'}</td><td><span class="badge badge-${l.status === 'hot' ? 'hot' : 'new'}">${l.source}</span></td>
+          <td>${(l.message || '-').substring(0, 60)}</td><td>${new Date(l.created_at).toLocaleString()}</td></tr>
+        `).join('');
+
+        document.getElementById('replies-body').innerHTML = replies.map(r => `
+          <tr><td>${r.from_email}</td><td>${(r.snippet || '').substring(0, 80)}</td>
+          <td><span class="badge badge-${r.classification === 'INTERESTED' ? 'hot' : 'new'}">${r.classification}</span></td>
+          <td>${new Date(r.received_at).toLocaleString()}</td></tr>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000);
+  </script>
+</body>
+</html>
